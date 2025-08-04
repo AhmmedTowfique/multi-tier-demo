@@ -1,0 +1,12 @@
+# Ignore all files by default
+*
+
+# But allow these specific files
+!.gitignore
+!install-terraform.ps1
+!README.md
+
+# Ignore common sensitive files/folders just in case
+.aws/
+.ssh/
+july25-dvft.pem
