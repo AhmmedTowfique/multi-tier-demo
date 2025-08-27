@@ -1,5 +1,6 @@
 name: Deploy static site to EC2
 
+# Trigger deployment on push to main branch
 on:
   push:
     branches: [ "main" ]
@@ -9,24 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare SSH
+      # Step 2: Prepare SSH for EC2 connection
+      - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Sync files to EC2 (rsync over SSH)
+      # Step 3: Sync repository files to EC2's Nginx web root
+      - name: Deploy files to EC2
         run: |
           rsync -avz --delete \
-            -e "ssh -i ~/.ssh/id_rsa" \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
             ./ \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/site
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/html
 
-      - name: (Optional) Reload Nginx
+      # Step 4: Reload Nginx to serve updated files
+      - name: Reload Nginx
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
             'sudo nginx -t && sudo systemctl reload nginx'
+
+      # Step 5 (Optional): Verify deployed files
+      - name: List deployed files on EC2
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'ls -l /var/www/html'
