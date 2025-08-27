@@ -19,18 +19,21 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Sync files to EC2 (rsync over SSH)
+      - name: Sync files and set permissions
         run: |
-          # Ensure destination folder exists
-          ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p /home/${{ secrets.EC2_USER }}/site"
+          ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -c "
+            # Ensure site folder exists
+            mkdir -p /home/ubuntu/site
 
-          # Sync contents of repository (or folder inside) directly into /site
-          rsync -avz --delete \
-            -e "ssh -i ~/.ssh/id_rsa" \
-            ./multi-tier-demo/ \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/site/
+            # Sync contents of repo
+            rsync -avz --delete /home/ubuntu/multi-tier-demo/ /home/ubuntu/site/
 
-      - name: Reload Nginx
-        run: |
-          ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-            'sudo nginx -t && sudo systemctl reload nginx'
+            # Set ownership and permissions
+            sudo chown -R ubuntu:www-data /home/ubuntu/site
+            sudo find /home/ubuntu/site -type d -exec chmod 755 {} \;
+            sudo find /home/ubuntu/site -type f -exec chmod 644 {} \;
+            sudo chmod 711 /home/ubuntu
+
+            # Reload Nginx (config assumed already correct)
+            sudo nginx -t && sudo systemctl reload nginx
+          "'
