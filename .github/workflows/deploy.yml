@@ -9,11 +9,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Prepare SSH for EC2 connection
       - name: Prepare SSH
         run: |
           mkdir -p ~/.ssh
@@ -21,14 +19,14 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
-      # Step 3: Sync repository contents to EC2 (no nested folder)
       - name: Sync files to EC2 (rsync over SSH)
         run: |
+          # Sync only the contents of the repo, not the folder itself
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/id_rsa" \
-            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/site/
+            ./ \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/site/
 
-      # Step 4: Reload Nginx to serve updated files
       - name: Reload Nginx
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
